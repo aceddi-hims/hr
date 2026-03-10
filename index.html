@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ACEDDI HR WebApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="app-title">
+        <div class="logo-circle">HR</div>
+        <div class="app-title-text">
+          <h1>ACEDDI HR Portal</h1>
+          <p>Green &amp; white leave management for Admin &amp; Employees</p>
+        </div>
+      </div>
+      <div class="tag-pill">Online Leave Requests</div>
+    </header>
+
+    <!-- LOGIN SECTION -->
+    <section id="login-section" class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">
+            <span class="status-dot"></span>
+            Login
+          </div>
+          <div class="card-subtitle">
+            Sign in as <strong>Admin</strong> or <strong>Employee</strong>.
+          </div>
+        </div>
+      </div>
+
+      <div class="layout-two-cols">
+        <div>
+          <form id="login-form">
+            <div class="input-group">
+              <label for="loginUserId">User ID</label>
+              <input type="text" id="loginUserId" required autocomplete="username">
+            </div>
+            <div class="input-group">
+              <label for="loginPassword">Password</label>
+              <input type="password" id="loginPassword" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-primary">Sign In</button>
+            <div id="login-message" class="message hidden"></div>
+          </form>
+        </div>
+
+        <div>
+          <p class="helper-text"><strong>New employee?</strong> Create your own account.</p>
+          <button id="go-to-register" class="btn-secondary">Create Employee Account</button>
+          <p class="helper-text" style="margin-top:12px;">
+            <strong>Default Admin</strong><br>
+            User ID: <code>admin</code><br>
+            Password: <code>admin123</code>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- REGISTER SECTION -->
+    <section id="register-section" class="card hidden">
+      <div class="card-header">
+        <div>
+          <div class="card-title">
+            <span class="status-dot"></span>
+            Employee Account Creation
+          </div>
+          <div class="card-subtitle">
+            Employees can register themselves. All new accounts are <strong>Employee</strong> role.
+          </div>
+        </div>
+        <button id="back-to-login" class="btn-ghost">Back to Login</button>
+      </div>
+
+      <form id="register-form">
+        <div class="input-group">
+          <label for="registerUserId">User ID</label>
+          <input type="text" id="registerUserId" required>
+        </div>
+        <div class="input-group">
+          <label for="registerName">Full Name</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="input-group">
+          <label for="registerDepartment">Department</label>
+          <input type="text" id="registerDepartment" required>
+        </div>
+        <div class="input-group">
+          <label for="registerPassword">Password</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="input-group">
+          <label for="registerConfirmPassword">Confirm Password</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn-primary">Create Account</button>
+        <div id="register-message" class="message hidden"></div>
+      </form>
+    </section>
+
+    <!-- EMPLOYEE DASHBOARD -->
+    <section id="employee-section" class="hidden">
+      <div class="card">
+        <div class="flex-space-between">
+          <div>
+            <div class="card-title">
+              <span class="status-dot"></span>
+              Employee Dashboard
+            </div>
+            <div class="card-subtitle">
+              Submit and track your leave requests. View HR notifications.
+            </div>
+          </div>
+          <div class="flex-row">
+            <span id="employee-welcome" class="role-tag-employee"></span>
+            <button id="employee-logout-btn" class="btn-secondary btn-small">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="layout-two-cols-stacked">
+        <!-- Leave Application -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Submit Leave Application</div>
+              <div class="card-subtitle">
+                Select leave type and dates. Your HR will update the status.
+              </div>
+            </div>
+          </div>
+
+          <form id="leave-form">
+            <div class="input-group">
+              <label for="leaveType">Leave Type</label>
+              <select id="leaveType" required>
+                <option value="">Select type...</option>
+                <option value="Paid Leave">Paid Leave</option>
+                <option value="Leave Without Pay">Leave Without Pay</option>
+                <option value="Vacation Leave">Vacation Leave</option>
+              </select>
+            </div>
+            <div class="flex-row">
+              <div class="input-group" style="flex:1;">
+                <label for="leaveStart">Start Date</label>
+                <input type="date" id="leaveStart" required>
+              </div>
+              <div class="input-group" style="flex:1;">
+                <label for="leaveEnd">End Date</label>
+                <input type="date" id="leaveEnd" required>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="leaveReason">Reason / Notes</label>
+              <textarea id="leaveReason" placeholder="Short description of your leave..." required></textarea>
+            </div>
+            <button type="submit" class="btn-primary">Submit Leave Request</button>
+            <div id="leave-message" class="message hidden"></div>
+          </form>
+        </div>
+
+        <!-- Notifications -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">HR Notifications</div>
+              <div class="card-subtitle">
+                Messages posted by HR specifically for you.
+              </div>
+            </div>
+          </div>
+          <ul id="employee-notifications-list" class="notifications-list"></ul>
+          <p id="employee-no-notifications" class="helper-text hidden">No notifications from HR yet.</p>
+        </div>
+      </div>
+
+      <!-- Leave History -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">My Leave Applications</div>
+            <div class="card-subtitle">
+              Track the status of your submitted leave requests.
+            </div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Period</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="employee-leaves-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN DASHBOARD -->
+    <section id="admin-section" class="hidden">
+      <div class="card">
+        <div class="flex-space-between">
+          <div>
+            <div class="card-title">
+              <span class="status-dot"></span>
+              Admin / HR Dashboard
+            </div>
+            <div class="card-subtitle">
+              Manage users, update leave statuses, and send notifications.
+            </div>
+          </div>
+          <div class="flex-row">
+            <span id="admin-welcome" class="role-tag-admin"></span>
+            <button id="admin-logout-btn" class="btn-secondary btn-small">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="layout-two-cols-stacked">
+        <!-- User Management -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">User Accounts</div>
+              <div class="card-subtitle">
+                View all accounts and update passwords.
+              </div>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Role</th>
+                  <th>New Password</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table-body"></tbody>
+            </table>
+          </div>
+          <p class="helper-text">
+            Password changes affect the next login for that user.
+          </p>
+          <div id="admin-users-message" class="message hidden"></div>
+        </div>
+
+        <!-- HR Notification Composer -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Post Notification to Employee</div>
+              <div class="card-subtitle">
+                Send a targeted message to a specific employee.
+              </div>
+            </div>
+          </div>
+
+          <form id="notification-form">
+            <div class="input-group">
+              <label for="notificationUserSelect">Select Employee</label>
+              <select id="notificationUserSelect" required></select>
+            </div>
+            <div class="input-group">
+              <label for="notificationMessage">Message</label>
+              <textarea id="notificationMessage" placeholder="Enter message for this employee..." required></textarea>
+            </div>
+            <button type="submit" class="btn-primary">Send Notification</button>
+            <div id="notification-message" class="message hidden"></div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Leave Management -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">All Leave Applications</div>
+            <div class="card-subtitle">
+              Review employee leave requests and update statuses.
+            </div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>Period</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Change Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-leaves-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

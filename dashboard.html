@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACEDDI HR - Employee Dashboard</title>
+    <link rel="stylesheet" href="dashboard-styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <h2>ACEDDI HR</h2>
+            <nav>
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#submit-leave" class="nav-link">Submit Leave</a>
+                <a href="#my-leaves" class="nav-link">My Leaves</a>
+                <a href="#profile" class="nav-link">Profile</a>
+                <a href="#" id="logout" class="nav-link logout">Logout</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Employee Dashboard</h1>
+                <span id="userName" class="user-name"></span>
+            </header>
+
+            <div class="content-area">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="section active">
+                    <h2>Welcome Back!</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Pending Leaves</h3>
+                            <p id="pendingCount">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Approved Leaves</h3>
+                            <p id="approvedCount">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Rejected Leaves</h3>
+                            <p id="rejectedCount">0</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Submit Leave Section -->
+                <section id="submit-leave" class="section">
+                    <h2>Submit Leave Request</h2>
+                    <form id="leaveForm">
+                        <div class="form-group">
+                            <label for="leaveType">Leave Type:</label>
+                            <select id="leaveType" required>
+                                <option value="">Select Leave Type</option>
+                                <option value="paid">Paid Leave</option>
+                                <option value="unpaid">Leave Without Pay</option>
+                                <option value="vacation">Vacation Leave</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="startDate">Start Date:</label>
+                            <input type="date" id="startDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">End Date:</label>
+                            <input type="date" id="endDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reason">Reason:</label>
+                            <textarea id="reason" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn">Submit Leave Request</button>
+                    </form>
+                </section>
+
+                <!-- My Leaves Section -->
+                <section id="my-leaves" class="section">
+                    <h2>My Leave Applications</h2>
+                    <div id="leavesList" class="leaves-list"></div>
+                </section>
+
+                <!-- Profile Section -->
+                <section id="profile" class="section">
+                    <h2>My Profile</h2>
+                    <div class="profile-info">
+                        <p><strong>User ID:</strong> <span id="profileUserId"></span></p>
+                        <p><strong>Name:</strong> <span id="profileName"></span></p>
+                        <p><strong>Department:</strong> <span id="profileDept"></span></p>
+                        <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="dashboard.js"></script>
+</body>
+</html>

@@ -1,73 +1,49 @@
-// ACEDDI HR WebApp - Frontend only, localStorage-based
+// ACEDDI HR WebApp - Firebase (shared online database)
 // Roles: admin, employee
 // Default admin: userId "admin", password "admin123"
 
-const STORAGE_KEYS = {
-  USERS: 'aceddi_hr_users',
-  LEAVES: 'aceddi_hr_leaves',
-  NOTIFICATIONS: 'aceddi_hr_notifications'
+let currentUser = null;
+let db = null;
+
+// ---- Firebase setup ----
+// 1) Go to Firebase console and create a project.
+// 2) Add a Web App and copy the "firebaseConfig" object.
+// 3) Paste your values below, replacing the placeholders.
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDAXPQjKQ9S2f_iKzEhHYiEfRmaKHoczMI",
+  authDomain: "aceddi-hr.firebaseapp.com",
+  projectId: "aceddi-hr",
+  storageBucket: "aceddi-hr.firebasestorage.app",
+  messagingSenderId: "1012480513897",
+  appId: "1:1012480513897:web:c358906a4553de0642cff8",
+  measurementId: "G-KVE1FL4M2G"
 };
 
-let currentUser = null;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+};
 
-// ---- Storage helpers ----
-function loadFromStorage(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
+function initFirebase() {
+  if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
+    console.warn("Firebase is not configured yet. Please paste your firebaseConfig values in app.js.");
+    return;
   }
-}
-
-function saveToStorage(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function loadUsers() {
-  return loadFromStorage(STORAGE_KEYS.USERS);
-}
-
-function saveUsers(users) {
-  saveToStorage(STORAGE_KEYS.USERS, users);
-}
-
-function loadLeaves() {
-  return loadFromStorage(STORAGE_KEYS.LEAVES);
-}
-
-function saveLeaves(leaves) {
-  saveToStorage(STORAGE_KEYS.LEAVES, leaves);
-}
-
-function loadNotifications() {
-  return loadFromStorage(STORAGE_KEYS.NOTIFICATIONS);
-}
-
-function saveNotifications(notifs) {
-  saveToStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);
-}
-
-// ---- Utility ----
-function ensureDefaultAdmin() {
-  let users = loadUsers();
-  const hasAdmin = users.some(u => u.role === 'admin');
-  if (!hasAdmin) {
-    users.push({
-      id: 'admin',
-      name: 'HR Admin',
-      department: 'HR',
-      password: 'admin123',
-      role: 'admin'
-    });
-    saveUsers(users);
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
   }
+  db = firebase.firestore();
 }
 
-function generateId(prefix) {
-  return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
-}
-
+// ---- Utility helpers ----
 function showSection(sectionId) {
   const sections = ['login-section', 'register-section', 'employee-section', 'admin-section'];
   sections.forEach(id => {
@@ -121,9 +97,101 @@ function statusBadge(status) {
   return '<span class="badge ' + cls + '">' + label + '</span>';
 }
 
+// ---- Firestore helpers ----
+async function ensureDefaultAdmin() {
+  if (!db) return;
+  const docRef = db.collection('users').doc('admin');
+  const snap = await docRef.get();
+  if (!snap.exists) {
+    await docRef.set({
+      name: 'HR Admin',
+      department: 'HR',
+      password: 'admin123',
+      role: 'admin'
+    });
+  }
+}
+
+async function getUserById(userId) {
+  if (!db) return null;
+  const docRef = db.collection('users').doc(userId);
+  const snap = await docRef.get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+async function getAllUsers() {
+  if (!db) return [];
+  const snap = await db.collection('users').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function createUser(user) {
+  if (!db) return;
+  const { id, ...rest } = user;
+  await db.collection('users').doc(id).set(rest);
+}
+
+async function updateUserPassword(userId, newPassword) {
+  if (!db) return;
+  await db.collection('users').doc(userId).update({ password: newPassword });
+  if (currentUser && currentUser.id === userId) {
+    currentUser.password = newPassword;
+  }
+}
+
+async function createLeave(leave) {
+  if (!db) return;
+  await db.collection('leaves').add(leave);
+}
+
+async function getLeavesForEmployee(employeeId) {
+  if (!db) return [];
+  const snap = await db
+    .collection('leaves')
+    .where('employeeId', '==', employeeId)
+    .orderBy('createdAt', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function getAllLeaves() {
+  if (!db) return [];
+  const snap = await db
+    .collection('leaves')
+    .orderBy('createdAt', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function updateLeaveStatus(leaveId, newStatus) {
+  if (!db) return;
+  await db.collection('leaves').doc(leaveId).update({ status: newStatus });
+}
+
+async function createNotification(notification) {
+  if (!db) return;
+  await db.collection('notifications').add(notification);
+}
+
+async function getNotificationsForEmployee(employeeId) {
+  if (!db) return [];
+  const snap = await db
+    .collection('notifications')
+    .where('employeeId', '==', employeeId)
+    .orderBy('createdAt', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // ---- Auth & navigation ----
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
+  if (!db) {
+    setMessage('login-message', 'Database not ready. Please configure Firebase in app.js.', 'error');
+    return;
+  }
+
   const userId = document.getElementById('loginUserId').value.trim();
   const password = document.getElementById('loginPassword').value;
 
@@ -132,28 +200,36 @@ function handleLogin(event) {
     return;
   }
 
-  const users = loadUsers();
-  const user = users.find(u => u.id === userId && u.password === password);
+  try {
+    const user = await getUserById(userId);
+    if (!user || user.password !== password) {
+      setMessage('login-message', 'Invalid credentials. Please try again.', 'error');
+      return;
+    }
 
-  if (!user) {
-    setMessage('login-message', 'Invalid credentials. Please try again.', 'error');
-    return;
-  }
+    currentUser = user;
+    document.getElementById('loginUserId').value = '';
+    document.getElementById('loginPassword').value = '';
+    setMessage('login-message', '', '');
 
-  currentUser = user;
-  document.getElementById('loginUserId').value = '';
-  document.getElementById('loginPassword').value = '';
-  setMessage('login-message', '', '');
-
-  if (user.role === 'admin') {
-    enterAdminDashboard();
-  } else {
-    enterEmployeeDashboard();
+    if (user.role === 'admin') {
+      enterAdminDashboard();
+    } else {
+      enterEmployeeDashboard();
+    }
+  } catch (err) {
+    console.error(err);
+    setMessage('login-message', 'Error connecting to database.', 'error');
   }
 }
 
-function handleRegister(event) {
+async function handleRegister(event) {
   event.preventDefault();
+  if (!db) {
+    setMessage('register-message', 'Database not ready. Please configure Firebase in app.js.', 'error');
+    return;
+  }
+
   const userId = document.getElementById('registerUserId').value.trim();
   const name = document.getElementById('registerName').value.trim();
   const department = document.getElementById('registerDepartment').value.trim();
@@ -170,29 +246,32 @@ function handleRegister(event) {
     return;
   }
 
-  let users = loadUsers();
-  const exists = users.some(u => u.id === userId);
-  if (exists) {
-    setMessage('register-message', 'User ID already exists. Choose another.', 'error');
-    return;
+  try {
+    const existing = await getUserById(userId);
+    if (existing) {
+      setMessage('register-message', 'User ID already exists. Choose another.', 'error');
+      return;
+    }
+
+    await createUser({
+      id: userId,
+      name: name,
+      department: department,
+      password: password,
+      role: 'employee'
+    });
+
+    document.getElementById('register-form').reset();
+    setMessage('register-message', 'Account created successfully. You can now log in.', 'success');
+
+    setTimeout(function () {
+      showSection('login-section');
+      setMessage('register-message', '', '');
+    }, 1200);
+  } catch (err) {
+    console.error(err);
+    setMessage('register-message', 'Error saving to database.', 'error');
   }
-
-  users.push({
-    id: userId,
-    name: name,
-    department: department,
-    password: password,
-    role: 'employee'
-  });
-  saveUsers(users);
-
-  document.getElementById('register-form').reset();
-  setMessage('register-message', 'Account created successfully. You can now log in.', 'success');
-
-  setTimeout(function () {
-    showSection('login-section');
-    setMessage('register-message', '', '');
-  }, 1200);
 }
 
 function enterEmployeeDashboard() {
@@ -221,8 +300,13 @@ function enterAdminDashboard() {
 }
 
 // ---- Employee leave & notifications ----
-function handleLeaveSubmit(event) {
+async function handleLeaveSubmit(event) {
   event.preventDefault();
+  if (!db) {
+    setMessage('leave-message', 'Database not ready. Please configure Firebase in app.js.', 'error');
+    return;
+  }
+
   if (!currentUser || currentUser.role !== 'employee') {
     setMessage('leave-message', 'You must be logged in as an employee.', 'error');
     return;
@@ -243,300 +327,339 @@ function handleLeaveSubmit(event) {
     return;
   }
 
-  const leaves = loadLeaves();
-  leaves.push({
-    id: generateId('leave'),
-    employeeId: currentUser.id,
-    type: type,
-    startDate: start,
-    endDate: end,
-    reason: reason,
-    status: 'Pending',
-    createdAt: Date.now()
-  });
-  saveLeaves(leaves);
+  try {
+    await createLeave({
+      employeeId: currentUser.id,
+      type: type,
+      startDate: start,
+      endDate: end,
+      reason: reason,
+      status: 'Pending',
+      createdAt: Date.now()
+    });
 
-  document.getElementById('leave-form').reset();
-  setMessage('leave-message', 'Leave request submitted successfully.', 'success');
-  renderEmployeeLeaves();
+    document.getElementById('leave-form').reset();
+    setMessage('leave-message', 'Leave request submitted successfully.', 'success');
+    renderEmployeeLeaves();
+  } catch (err) {
+    console.error(err);
+    setMessage('leave-message', 'Error saving to database.', 'error');
+  }
 }
 
-function renderEmployeeLeaves() {
-  if (!currentUser) return;
+async function renderEmployeeLeaves() {
+  if (!currentUser || !db) return;
   const tbody = document.getElementById('employee-leaves-table-body');
   tbody.innerHTML = '';
-  const allLeaves = loadLeaves();
-  const myLeaves = allLeaves
-    .filter(l => l.employeeId === currentUser.id)
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  if (myLeaves.length === 0) {
+  try {
+    const myLeaves = await getLeavesForEmployee(currentUser.id);
+
+    if (myLeaves.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      td.textContent = 'No leave applications yet.';
+      td.className = 'helper-text';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    myLeaves.forEach(l => {
+      const tr = document.createElement('tr');
+
+      const typeTd = document.createElement('td');
+      typeTd.textContent = l.type || '';
+      tr.appendChild(typeTd);
+
+      const periodTd = document.createElement('td');
+      periodTd.textContent = formatDate(l.startDate) + ' \u2192 ' + formatDate(l.endDate);
+      tr.appendChild(periodTd);
+
+      const reasonTd = document.createElement('td');
+      reasonTd.textContent = l.reason || '';
+      tr.appendChild(reasonTd);
+
+      const statusTd = document.createElement('td');
+      statusTd.innerHTML = statusBadge(l.status);
+      tr.appendChild(statusTd);
+
+      const submittedTd = document.createElement('td');
+      submittedTd.textContent = l.createdAt ? formatDateTime(l.createdAt) : '';
+      tr.appendChild(submittedTd);
+
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     td.colSpan = 5;
-    td.textContent = 'No leave applications yet.';
-    td.className = 'helper-text';
+    td.textContent = 'Error loading leaves.';
     tr.appendChild(td);
     tbody.appendChild(tr);
-    return;
   }
-
-  myLeaves.forEach(l => {
-    const tr = document.createElement('tr');
-
-    const typeTd = document.createElement('td');
-    typeTd.textContent = l.type || '';
-    tr.appendChild(typeTd);
-
-    const periodTd = document.createElement('td');
-    periodTd.textContent = formatDate(l.startDate) + ' \u2192 ' + formatDate(l.endDate);
-    tr.appendChild(periodTd);
-
-    const reasonTd = document.createElement('td');
-    reasonTd.textContent = l.reason || '';
-    tr.appendChild(reasonTd);
-
-    const statusTd = document.createElement('td');
-    statusTd.innerHTML = statusBadge(l.status);
-    tr.appendChild(statusTd);
-
-    const submittedTd = document.createElement('td');
-    submittedTd.textContent = l.createdAt ? formatDateTime(l.createdAt) : '';
-    tr.appendChild(submittedTd);
-
-    tbody.appendChild(tr);
-  });
 }
 
-function renderEmployeeNotifications() {
-  if (!currentUser) return;
+async function renderEmployeeNotifications() {
+  if (!currentUser || !db) return;
   const listEl = document.getElementById('employee-notifications-list');
   const emptyEl = document.getElementById('employee-no-notifications');
   listEl.innerHTML = '';
 
-  const allNotifs = loadNotifications();
-  const myNotifs = allNotifs
-    .filter(n => n.employeeId === currentUser.id)
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  try {
+    const myNotifs = await getNotificationsForEmployee(currentUser.id);
 
-  if (myNotifs.length === 0) {
+    if (myNotifs.length === 0) {
+      emptyEl.classList.remove('hidden');
+      emptyEl.textContent = 'No notifications from HR yet.';
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
+    myNotifs.forEach(n => {
+      const li = document.createElement('li');
+      li.className = 'notification-item';
+
+      const msg = document.createElement('div');
+      msg.textContent = n.message || '';
+      li.appendChild(msg);
+
+      const meta = document.createElement('div');
+      meta.className = 'notification-meta';
+      meta.textContent = 'From HR • ' + formatDateTime(n.createdAt);
+      li.appendChild(meta);
+
+      listEl.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
     emptyEl.classList.remove('hidden');
-    emptyEl.textContent = 'No notifications from HR yet.';
-    return;
+    emptyEl.textContent = 'Error loading notifications.';
   }
-  emptyEl.classList.add('hidden');
-
-  myNotifs.forEach(n => {
-    const li = document.createElement('li');
-    li.className = 'notification-item';
-
-    const msg = document.createElement('div');
-    msg.textContent = n.message || '';
-    li.appendChild(msg);
-
-    const meta = document.createElement('div');
-    meta.className = 'notification-meta';
-    meta.textContent = 'From HR • ' + formatDateTime(n.createdAt);
-    li.appendChild(meta);
-
-    listEl.appendChild(li);
-  });
 }
 
 // ---- Admin: users ----
-function renderAdminUsers() {
+async function renderAdminUsers() {
+  if (!db) return;
   const tbody = document.getElementById('admin-users-table-body');
   tbody.innerHTML = '';
-  const users = loadUsers().sort((a, b) => {
-    if (a.role === b.role) return a.id.localeCompare(b.id);
-    return a.role === 'admin' ? -1 : 1;
-  });
 
-  if (users.length === 0) {
+  try {
+    const users = (await getAllUsers()).sort((a, b) => {
+      if (a.role === b.role) return a.id.localeCompare(b.id);
+      return a.role === 'admin' ? -1 : 1;
+    });
+
+    if (users.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.textContent = 'No users found.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    users.forEach(u => {
+      const tr = document.createElement('tr');
+
+      const idTd = document.createElement('td');
+      idTd.textContent = u.id;
+      tr.appendChild(idTd);
+
+      const nameTd = document.createElement('td');
+      nameTd.textContent = u.name || '';
+      tr.appendChild(nameTd);
+
+      const deptTd = document.createElement('td');
+      deptTd.textContent = u.department || '';
+      tr.appendChild(deptTd);
+
+      const roleTd = document.createElement('td');
+      const span = document.createElement('span');
+      span.className = u.role === 'admin' ? 'role-tag-admin' : 'role-tag-employee';
+      span.textContent = u.role.toUpperCase();
+      roleTd.appendChild(span);
+      tr.appendChild(roleTd);
+
+      const inputTd = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.placeholder = 'New password';
+      inputTd.appendChild(input);
+      tr.appendChild(inputTd);
+
+      const actionTd = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.textContent = 'Update';
+      btn.className = 'btn-secondary btn-small';
+      btn.addEventListener('click', async function () {
+        const newPass = input.value;
+        if (!newPass) {
+          setMessage('admin-users-message', 'Please enter a new password for ' + u.id + '.', 'error');
+          return;
+        }
+        try {
+          await updateUserPassword(u.id, newPass);
+          input.value = '';
+          setMessage('admin-users-message', 'Password updated for ' + u.id + '.', 'success');
+        } catch (err) {
+          console.error(err);
+          setMessage('admin-users-message', 'Error updating password.', 'error');
+        }
+      });
+      actionTd.appendChild(btn);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     td.colSpan = 6;
-    td.textContent = 'No users found.';
+    td.textContent = 'Error loading users.';
     tr.appendChild(td);
     tbody.appendChild(tr);
-    return;
-  }
-
-  users.forEach(u => {
-    const tr = document.createElement('tr');
-
-    const idTd = document.createElement('td');
-    idTd.textContent = u.id;
-    tr.appendChild(idTd);
-
-    const nameTd = document.createElement('td');
-    nameTd.textContent = u.name || '';
-    tr.appendChild(nameTd);
-
-    const deptTd = document.createElement('td');
-    deptTd.textContent = u.department || '';
-    tr.appendChild(deptTd);
-
-    const roleTd = document.createElement('td');
-    const span = document.createElement('span');
-    span.className = u.role === 'admin' ? 'role-tag-admin' : 'role-tag-employee';
-    span.textContent = u.role.toUpperCase();
-    roleTd.appendChild(span);
-    tr.appendChild(roleTd);
-
-    const inputTd = document.createElement('td');
-    const input = document.createElement('input');
-    input.type = 'password';
-    input.placeholder = 'New password';
-    inputTd.appendChild(input);
-    tr.appendChild(inputTd);
-
-    const actionTd = document.createElement('td');
-    const btn = document.createElement('button');
-    btn.textContent = 'Update';
-    btn.className = 'btn-secondary btn-small';
-    btn.addEventListener('click', function () {
-      const newPass = input.value;
-      if (!newPass) {
-        setMessage('admin-users-message', 'Please enter a new password for ' + u.id + '.', 'error');
-        return;
-      }
-      updateUserPassword(u.id, newPass);
-      input.value = '';
-      setMessage('admin-users-message', 'Password updated for ' + u.id + '.', 'success');
-    });
-    actionTd.appendChild(btn);
-    tr.appendChild(actionTd);
-
-    tbody.appendChild(tr);
-  });
-}
-
-function updateUserPassword(userId, newPassword) {
-  let users = loadUsers();
-  users = users.map(u => {
-    if (u.id === userId) {
-      return { ...u, password: newPassword };
-    }
-    return u;
-  });
-  saveUsers(users);
-
-  if (currentUser && currentUser.id === userId) {
-    currentUser.password = newPassword;
   }
 }
 
 // ---- Admin: leaves ----
-function renderAdminLeaves() {
+async function renderAdminLeaves() {
+  if (!db) return;
   const tbody = document.getElementById('admin-leaves-table-body');
   tbody.innerHTML = '';
-  const leaves = loadLeaves().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  if (leaves.length === 0) {
+  try {
+    const leaves = await getAllLeaves();
+
+    if (leaves.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.textContent = 'No leave applications submitted yet.';
+      td.className = 'helper-text';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    leaves.forEach(l => {
+      const tr = document.createElement('tr');
+
+      const empTd = document.createElement('td');
+      empTd.textContent = l.employeeId || '';
+      tr.appendChild(empTd);
+
+      const typeTd = document.createElement('td');
+      typeTd.textContent = l.type || '';
+      tr.appendChild(typeTd);
+
+      const periodTd = document.createElement('td');
+      periodTd.textContent = formatDate(l.startDate) + ' \u2192 ' + formatDate(l.endDate);
+      tr.appendChild(periodTd);
+
+      const reasonTd = document.createElement('td');
+      reasonTd.textContent = l.reason || '';
+      tr.appendChild(reasonTd);
+
+      const statusTd = document.createElement('td');
+      statusTd.innerHTML = statusBadge(l.status);
+      tr.appendChild(statusTd);
+
+      const actionTd = document.createElement('td');
+      const select = document.createElement('select');
+      ['Pending', 'Approved', 'Rejected'].forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt;
+        if ((l.status || 'Pending') === opt) o.selected = true;
+        select.appendChild(o);
+      });
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = 'Save';
+      saveBtn.className = 'btn-secondary btn-small';
+      saveBtn.style.marginLeft = '6px';
+      saveBtn.addEventListener('click', async function () {
+        try {
+          await updateLeaveStatus(l.id, select.value);
+          renderAdminLeaves();
+          if (currentUser && currentUser.role === 'employee') {
+            renderEmployeeLeaves();
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error updating status.');
+        }
+      });
+      actionTd.appendChild(select);
+      actionTd.appendChild(saveBtn);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     td.colSpan = 6;
-    td.textContent = 'No leave applications submitted yet.';
-    td.className = 'helper-text';
+    td.textContent = 'Error loading leaves.';
     tr.appendChild(td);
     tbody.appendChild(tr);
-    return;
-  }
-
-  leaves.forEach(l => {
-    const tr = document.createElement('tr');
-
-    const empTd = document.createElement('td');
-    empTd.textContent = l.employeeId || '';
-    tr.appendChild(empTd);
-
-    const typeTd = document.createElement('td');
-    typeTd.textContent = l.type || '';
-    tr.appendChild(typeTd);
-
-    const periodTd = document.createElement('td');
-    periodTd.textContent = formatDate(l.startDate) + ' \u2192 ' + formatDate(l.endDate);
-    tr.appendChild(periodTd);
-
-    const reasonTd = document.createElement('td');
-    reasonTd.textContent = l.reason || '';
-    tr.appendChild(reasonTd);
-
-    const statusTd = document.createElement('td');
-    statusTd.innerHTML = statusBadge(l.status);
-    tr.appendChild(statusTd);
-
-    const actionTd = document.createElement('td');
-    const select = document.createElement('select');
-    ['Pending', 'Approved', 'Rejected'].forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt;
-      o.textContent = opt;
-      if ((l.status || 'Pending') === opt) o.selected = true;
-      select.appendChild(o);
-    });
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save';
-    saveBtn.className = 'btn-secondary btn-small';
-    saveBtn.style.marginLeft = '6px';
-    saveBtn.addEventListener('click', function () {
-      updateLeaveStatus(l.id, select.value);
-    });
-    actionTd.appendChild(select);
-    actionTd.appendChild(saveBtn);
-    tr.appendChild(actionTd);
-
-    tbody.appendChild(tr);
-  });
-}
-
-function updateLeaveStatus(leaveId, newStatus) {
-  let leaves = loadLeaves();
-  leaves = leaves.map(l => {
-    if (l.id === leaveId) {
-      return { ...l, status: newStatus };
-    }
-    return l;
-  });
-  saveLeaves(leaves);
-  renderAdminLeaves();
-  if (currentUser && currentUser.role === 'employee') {
-    renderEmployeeLeaves();
   }
 }
 
 // ---- Admin: notifications ----
-function populateNotificationEmployeeSelect() {
+async function populateNotificationEmployeeSelect() {
+  if (!db) return;
   const select = document.getElementById('notificationUserSelect');
   select.innerHTML = '';
-  const employees = loadUsers().filter(u => u.role === 'employee');
 
-  if (employees.length === 0) {
+  try {
+    const users = await getAllUsers();
+    const employees = users.filter(u => u.role === 'employee');
+
+    if (employees.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No employees found';
+      select.appendChild(opt);
+      select.disabled = true;
+      return;
+    }
+
+    select.disabled = false;
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select employee...';
+    select.appendChild(placeholder);
+
+    employees.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = u.id + ' - ' + (u.name || '');
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error(err);
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = 'No employees found';
+    opt.textContent = 'Error loading employees';
     select.appendChild(opt);
     select.disabled = true;
+  }
+}
+
+async function handleNotificationSubmit(event) {
+  event.preventDefault();
+  if (!db) {
+    setMessage('notification-message', 'Database not ready. Please configure Firebase in app.js.', 'error');
     return;
   }
 
-  select.disabled = false;
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = 'Select employee...';
-  select.appendChild(placeholder);
-
-  employees.forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.id;
-    opt.textContent = u.id + ' - ' + (u.name || '');
-    select.appendChild(opt);
-  });
-}
-
-function handleNotificationSubmit(event) {
-  event.preventDefault();
   const userId = document.getElementById('notificationUserSelect').value;
   const messageText = document.getElementById('notificationMessage').value.trim();
 
@@ -549,21 +672,23 @@ function handleNotificationSubmit(event) {
     return;
   }
 
-  const notifications = loadNotifications();
-  notifications.push({
-    id: generateId('notif'),
-    employeeId: userId,
-    message: messageText,
-    createdAt: Date.now()
-  });
-  saveNotifications(notifications);
+  try {
+    await createNotification({
+      employeeId: userId,
+      message: messageText,
+      createdAt: Date.now()
+    });
 
-  document.getElementById('notification-form').reset();
-  populateNotificationEmployeeSelect();
-  setMessage('notification-message', 'Notification sent to ' + userId + '.', 'success');
+    document.getElementById('notification-form').reset();
+    populateNotificationEmployeeSelect();
+    setMessage('notification-message', 'Notification sent to ' + userId + '.', 'success');
 
-  if (currentUser && currentUser.role === 'employee' && currentUser.id === userId) {
-    renderEmployeeNotifications();
+    if (currentUser && currentUser.role === 'employee' && currentUser.id === userId) {
+      renderEmployeeNotifications();
+    }
+  } catch (err) {
+    console.error(err);
+    setMessage('notification-message', 'Error saving notification.', 'error');
   }
 }
 
@@ -578,10 +703,10 @@ function setupEventListeners() {
   const employeeLogoutBtn = document.getElementById('employee-logout-btn');
   const adminLogoutBtn = document.getElementById('admin-logout-btn');
 
-  if (loginForm) loginForm.addEventListener('submit', handleLogin);
-  if (registerForm) registerForm.addEventListener('submit', handleRegister);
-  if (leaveForm) leaveForm.addEventListener('submit', handleLeaveSubmit);
-  if (notifForm) notifForm.addEventListener('submit', handleNotificationSubmit);
+  if (loginForm) loginForm.addEventListener('submit', function (e) { handleLogin(e); });
+  if (registerForm) registerForm.addEventListener('submit', function (e) { handleRegister(e); });
+  if (leaveForm) leaveForm.addEventListener('submit', function (e) { handleLeaveSubmit(e); });
+  if (notifForm) notifForm.addEventListener('submit', function (e) { handleNotificationSubmit(e); });
 
   if (goToRegisterBtn) {
     goToRegisterBtn.addEventListener('click', function () {
@@ -613,8 +738,15 @@ function setupEventListeners() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-  ensureDefaultAdmin();
+document.addEventListener('DOMContentLoaded', async function () {
+  initFirebase();
+  if (db) {
+    try {
+      await ensureDefaultAdmin();
+    } catch (err) {
+      console.error('Error ensuring default admin', err);
+    }
+  }
   setupEventListeners();
   showSection('login-section');
 });
